@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="..\General.props" />
+  <Import Project="..\Local.props" Condition="Exists('..\Local.props')" />
+
+  <PropertyGroup>
+    <Description>Tests for Sharp.Async</Description>
+    <!-- Portable 'netstandardX.Y' target frameworks are not supported.  -->
+    <TargetFrameworks>net472;netcoreapp2.1</TargetFrameworks>
+    <RootNamespace>Sharp.Async</RootNamespace>
+    <DocumentationFile></DocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentAssertions" Version="5.4.2" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.8.0" />
+    <PackageReference Include="NUnit" Version="3.10.1" />
+    <PackageReference Include="NUnit.Extension.TeamCityEventListener" Version="1.0.4" />
+    <PackageReference Include="NUnit3TestAdapter" Version="3.10.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <DotNetCliToolReference Include="JetBrains.dotCover.CommandLineTools" Version="2018.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Sharp.Async\Sharp.Async.csproj" />
+  </ItemGroup>
+
+</Project>

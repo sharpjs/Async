@@ -1,0 +1,39 @@
+# Build Products
+obj/
+bin/
+/dist/
+/coverage/
+
+# Visual Studio User Files
+.vs/
+*.user
+
+# Visual Studio Profiler
+*.psess
+*.vsp
+*.vspx
+*.sap
+
+# Testing
+TestResults
+TestResult*.xml
+
+# Local Files
+/Local.props
+
+# Temporary Files
+*.log
+*.old
+*.tmp
+
+# Git
+*.orig
+*.patch
+*.rej
+
+# Windows Junk
+Thumbs.db
+Desktop.ini
+
+# OS X Junk
+.DS_Store
