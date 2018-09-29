@@ -30,7 +30,7 @@ namespace Sharp.Async
     /// <remarks>
     ///   This scheduler improves upon the implementation published as an
     ///   example in <a href="https://docs.microsoft.com/en-ca/dotnet/api/system.threading.tasks.taskscheduler?view=netframework-4.7.1#examples">the
-    ///   .NET Framework documentation for <see cref="TaskScheduler"/>.  In
+    ///   .NET Framework documentation for <see cref="TaskScheduler"/></a>.  In
     ///   contrast to the example, this scheduler is a lock-free implementation
     ///   using <c>System.Collections.Concurrent</c> collections and
     ///   <c>System.Threading.Interlocked</c> operations.  This scheduler also
