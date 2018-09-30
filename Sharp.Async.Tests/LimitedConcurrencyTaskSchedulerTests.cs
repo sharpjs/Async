@@ -213,6 +213,26 @@ namespace Sharp.Async.Tests
             }
         }
 
+        [Test]
+        public void TryStartDispatcher_ConcurrencyConflict()
+        {
+            using (var scheduler = new DelayedDispatchScheduler(concurrency: 2))
+            {
+                var task0 = ATask();
+                var task1 = ATask();
+                var task2 = ATask();
+
+                task0.Start(scheduler);
+                task1.Start(scheduler);
+                task2.Start(scheduler);
+
+                scheduler.EnableDispatch();
+                task0.Wait();
+                task1.Wait();
+                task2.Wait();
+            }
+        }
+
         [Test, Retry(3)]
         public void Run_UpToConcurrencyLimit()
         {
