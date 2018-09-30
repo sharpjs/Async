@@ -294,8 +294,6 @@ namespace Sharp.Async.Tests
 
         private static Task ATask() => new Task(() => { });
 
-        private static Task NonExecutableTask => Task.CompletedTask;
-
         private class TestableScheduler : LimitedConcurrencyTaskScheduler
         {
             public TestableScheduler(int concurrency)
@@ -312,13 +310,6 @@ namespace Sharp.Async.Tests
 
             public new bool TryExecuteTaskInline(Task task, bool taskWasPreviouslyQueued)
                 => base.TryExecuteTaskInline(task, taskWasPreviouslyQueued);
-
-            private protected override bool TryStartDispatcher(int count)
-            {
-                // Delay to allow test arrangement to complete
-                Thread.Sleep(50.Milliseconds());
-                return base.TryStartDispatcher(count);
-            }
         }
 
         private class FakeDispatchScheduler : TestableScheduler
