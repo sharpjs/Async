@@ -132,7 +132,7 @@ namespace Sharp.Async.Tests
         [Test]
         public void TryExecuteTaskInline_NullTask()
         {
-            using (var scheduler = new DelayedDispatchScheduler())
+            using (var scheduler = new DelayedDispatchScheduler(concurrency: 1))
             {
                 scheduler.TryExecuteTaskInline(null, false).Should().BeFalse();
             }
@@ -141,7 +141,7 @@ namespace Sharp.Async.Tests
         [Test]
         public void TryExecuteTaskInline_NotInDispatcherThread()
         {
-            using (var scheduler = new DelayedDispatchScheduler())
+            using (var scheduler = new DelayedDispatchScheduler(concurrency: 1))
             {
                 scheduler.TryExecuteTaskInline(ATask(), false).Should().BeFalse();
             }
@@ -150,7 +150,7 @@ namespace Sharp.Async.Tests
         [Test]
         public void TryExecuteTaskInline_NonQueuedTask()
         {
-            using (var scheduler = new DelayedDispatchScheduler())
+            using (var scheduler = new DelayedDispatchScheduler(concurrency: 1))
             {
                 var task1 = ATask();
 
@@ -172,7 +172,7 @@ namespace Sharp.Async.Tests
         [Test]
         public void TryExecuteTaskInline_QueuedTask()
         {
-            using (var scheduler = new DelayedDispatchScheduler())
+            using (var scheduler = new DelayedDispatchScheduler(concurrency: 1))
             {
                 var task1 = ATask();
 
@@ -194,7 +194,7 @@ namespace Sharp.Async.Tests
         [Test]
         public void TryExecuteTaskInline_FailedToDequeueTask()
         {
-            using (var scheduler = new DelayedDispatchScheduler())
+            using (var scheduler = new DelayedDispatchScheduler(concurrency: 1))
             {
                 var task1 = ATask();
 
@@ -278,7 +278,7 @@ namespace Sharp.Async.Tests
 
         private class TestableScheduler : LimitedConcurrencyTaskScheduler
         {
-            public TestableScheduler(int concurrency = 4)
+            public TestableScheduler(int concurrency)
                 : base(concurrency) { }
 
             public new void QueueTask(Task task)
@@ -304,11 +304,16 @@ namespace Sharp.Async.Tests
         private class FakeDispatchScheduler : TestableScheduler
         {
             private int _dispatcherStartCount;
-            public  int  DispatcherStartCount => _dispatcherStartCount;
+
+            public FakeDispatchScheduler()
+                : base(concurrency: int.MaxValue) { }
+
+            public int DispatcherStartCount => _dispatcherStartCount;
 
             private protected override bool TryStartDispatcher(int count)
             {
                 Interlocked.Increment(ref _dispatcherStartCount);
+
                 return true; // pretend it started
             }
 
@@ -323,8 +328,8 @@ namespace Sharp.Async.Tests
             private readonly ManualResetEventSlim _enabled
                 = new ManualResetEventSlim();
 
-            public DelayedDispatchScheduler()
-                : base(concurrency: 1) { }
+            public DelayedDispatchScheduler(int concurrency = 1)
+                : base(concurrency) { }
 
             public void EnableDispatch()
             {
