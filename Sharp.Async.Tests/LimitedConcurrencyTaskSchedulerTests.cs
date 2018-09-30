@@ -60,7 +60,7 @@ namespace Sharp.Async.Tests
         [Test]
         public void QueueTask_NullTask()
         {
-            var scheduler = new TestableLimitedConcurrencyTaskScheduler();
+            var scheduler = new FakeDispatchScheduler();
 
             scheduler
                 .Invoking(s => s.QueueTask(null))
@@ -68,14 +68,98 @@ namespace Sharp.Async.Tests
         }
 
         [Test]
-        public void QueueTask_Ok()
+        public void TryDequeue_NullTask()
         {
-            var scheduler = new TestableLimitedConcurrencyTaskScheduler();
-            var task      = ATask();
+            var scheduler = new FakeDispatchScheduler();
 
-            scheduler.QueueTask(task);
+            scheduler.TryDequeue(null).Should().BeFalse();
+        }
 
-            WaitUntil(() => scheduler.TriedToExecuteTask(task));
+        [Test]
+        public void Queue_Initial()
+        {
+            var scheduler = new FakeDispatchScheduler();
+
+            scheduler.GetScheduledTasks() .Should().BeEmpty();
+            scheduler.DispatcherStartCount.Should().Be(0);
+        }
+
+        [Test]
+        public void Queue_Initial_ThenTryDequeue()
+        {
+            var scheduler = new FakeDispatchScheduler();
+
+            scheduler.TryDequeue(ATask()).Should().BeFalse();
+
+            scheduler.GetScheduledTasks() .Should().BeEmpty();
+            scheduler.DispatcherStartCount.Should().Be(0);
+        }
+
+        [Test]
+        public void Queue_AfterQueueTasks()
+        {
+            var scheduler = new FakeDispatchScheduler();
+            var task0     = ATask();
+            var task1     = ATask();
+            var task2     = ATask();
+
+            scheduler.QueueTask(task0);
+            scheduler.QueueTask(task1);
+            scheduler.QueueTask(task2);
+
+            scheduler.GetScheduledTasks() .Should().BeEquivalentTo(task0, task1, task2);
+            scheduler.DispatcherStartCount.Should().Be(3);
+        }
+
+        [Test]
+        public void Queue_AfterQueueTasks_ThenTryDequeue()
+        {
+            var scheduler = new FakeDispatchScheduler();
+            var task0     = ATask();
+            var task1     = ATask();
+            var task2     = ATask();
+
+            scheduler.QueueTask(task0);
+            scheduler.QueueTask(task1);
+            scheduler.QueueTask(task2);
+            scheduler.TryDequeue(task1).Should().BeTrue();
+            scheduler.TryDequeue(task1).Should().BeFalse();
+
+            scheduler.GetScheduledTasks() .Should().BeEquivalentTo(task0, task2);
+            scheduler.DispatcherStartCount.Should().Be(3);
+        }
+
+        [Test]
+        public void TryExecuteTaskInline_NullTask()
+        {
+            var scheduler = new TestableScheduler();
+
+            scheduler.TryExecuteTaskInline(null, false).Should().BeFalse();
+        }
+
+        [Test]
+        public void TryExecuteTaskInline_NotInDispatcherThread()
+        {
+            var scheduler = new TestableScheduler();
+
+            scheduler.TryExecuteTaskInline(ATask(), false).Should().BeFalse();
+        }
+
+        [Test]
+        public void TryExecuteTaskInline_FailedToDequeueTask()
+        {
+            var scheduler = new TestableScheduler();
+            var task0     = ATask();
+            var task1     = new Task(() =>
+            {
+                // In here, we will be inside a dispatcher thread
+                scheduler.TryExecuteTaskInline(task0, true).Should().BeFalse();
+            });
+
+            task1.Start(scheduler);
+            task1.Wait();
+
+            task0.Status.Should().Be(TaskStatus.Created);
         }
 
         [Test, Retry(3)]
@@ -149,7 +233,7 @@ namespace Sharp.Async.Tests
                 if (DateTime.UtcNow > limit)
                     Assert.Fail("Gave up waiting for condition.");
 
-                Thread.Sleep(20.Milliseconds());
+                Thread.Sleep(30.Milliseconds());
             }
         }
 
@@ -157,14 +241,48 @@ namespace Sharp.Async.Tests
 
         private static Task NonExecutableTask => Task.CompletedTask;
 
-        private class TestableLimitedConcurrencyTaskScheduler : LimitedConcurrencyTaskScheduler
+        private class TestableScheduler : LimitedConcurrencyTaskScheduler
+        {
+            public TestableScheduler()
+                : base(4) { }
+
+            public new void QueueTask(Task task)
+                => base.QueueTask(task);
+
+            public new bool TryDequeue(Task task)
+                => base.TryDequeue(task);
+
+            public new IEnumerable<Task> GetScheduledTasks()
+                => base.GetScheduledTasks();
+
+            public new bool TryExecuteTaskInline(Task task, bool taskWasPreviouslyQueued)
+                => base.TryExecuteTaskInline(task, taskWasPreviouslyQueued);
+        }
+
+        private class FakeDispatchScheduler : TestableScheduler
+        {
+            private int _dispatcherStartCount;
+
+            public int DispatcherStartCount
+                => _dispatcherStartCount;
+
+            private protected override bool TryStartDispatcher(int count)
+            {
+                Interlocked.Increment(ref _dispatcherStartCount);
+                return true; // pretend it started
+            }
+
+            protected override bool TryExecuteTask(Task task)
+                => throw new NotSupportedException();
+        }
+
+        private class LoggingScheduler : TestableScheduler
         {
             private readonly Func<Task, bool> _execute;
             private readonly List<Execution>  _executions;
             private readonly object           _executionsMutex;
 
-            public TestableLimitedConcurrencyTaskScheduler(Func<Task, bool> execute = null)
-                : base(4)
+            public LoggingScheduler(Func<Task, bool> execute = null)
             {
                 _execute         = execute ?? (_ => true);
                 _executions      = new List<Execution>();

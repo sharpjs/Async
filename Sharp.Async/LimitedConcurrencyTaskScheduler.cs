@@ -135,7 +135,7 @@ namespace Sharp.Async
             return TryExecuteTask(task);
         }
 
-        // Starts a dispatch loop if concurrency permits.
+        // Starts a dispatcher loop if concurrency permits.
         private void TryStartDispatcher()
         {
             // Lock-free retry loop
@@ -146,18 +146,27 @@ namespace Sharp.Async
                 if (count >= _dispatcherLimit)
                     return; // Concurrency limit reached
 
-                // Attempt to increment concurrency level
-                var replaced = Interlocked.CompareExchange(ref _dispatcherCount, count + 1, count);
-                if (replaced != count)
-                    continue; // Concurrency level changed since checked; retry
+                if (TryStartDispatcher(count))
+                    return; // Started
 
-                // Start dispatcher with a clean execution context
-                ThreadPool.UnsafeQueueUserWorkItem(Dispatch, null);
-                return;
+                // Concurrency level changed since checked; retry
             }
         }
 
-        // Dispatcher thread main
+        // Starts a dispatcher loop
+        private protected virtual bool TryStartDispatcher(int count)
+        {
+            // Attempt to increment concurrency level
+            var replaced = Interlocked.CompareExchange(ref _dispatcherCount, count + 1, count);
+            if (replaced != count)
+                return false; // Concurrency level changed since checked
+
+            // Start dispatcher with a clean execution context
+            ThreadPool.UnsafeQueueUserWorkItem(Dispatch, null);
+            return true;
+        }
+
+        // Dispatcher loop
         private void Dispatch(object arg /* unused */)
         {
             try
@@ -166,8 +175,11 @@ namespace Sharp.Async
                 // inlined on the current thread by TryExecuteTaskInline.
                 _threadIsDispatching = true;
 
-                // Try to execute all queued tasks.
-                DispatchQueuedTasks();
+                // Try to execute all entries in the queue.  Note that an entry
+                // might be empty due to a previous TryDequeue invocation.
+                while (_queue.TryDequeue(out var entry))
+                    if (entry.TryTake(out var task))
+                        TryExecuteTask(task);
             }
             finally
             {
@@ -175,17 +187,6 @@ namespace Sharp.Async
                 Interlocked.Decrement(ref _dispatcherCount);
                 _threadIsDispatching = false;
             }
-        }
-
-        // Dispatcher loop
-        private protected void DispatchQueuedTasks()
-        {
-            // Try to execute all entries in the queue.  Note that an entry
-            // might be empty due to a previous TryDequeue invocation.
-            while (_queue.TryDequeue(out var entry))
-                if (entry.TryTake(out var task))
-                    // Execute task on current thread
-                    TryExecuteTask(task);
         }
 
         /// <summary>
