@@ -60,7 +60,7 @@ namespace Sharp.Async.Tests
         [Test]
         public void QueueTask_NullTask()
         {
-            var scheduler = new FakeDispatchScheduler();
+            var scheduler = new TestableScheduler();
 
             scheduler
                 .Invoking(s => s.QueueTask(null))
@@ -70,7 +70,7 @@ namespace Sharp.Async.Tests
         [Test]
         public void TryDequeue_NullTask()
         {
-            var scheduler = new FakeDispatchScheduler();
+            var scheduler = new TestableScheduler();
 
             scheduler.TryDequeue(null).Should().BeFalse();
         }
@@ -78,27 +78,27 @@ namespace Sharp.Async.Tests
         [Test]
         public void Queue_Initial()
         {
-            var scheduler = new FakeDispatchScheduler();
+            var scheduler = new TestableScheduler() { IsReliable = true };
 
-            scheduler.GetScheduledTasks() .Should().BeEmpty();
-            scheduler.DispatcherStartCount.Should().Be(0);
+            scheduler.GetScheduledTasks()    .Should().BeEmpty();
+            scheduler.TryStartDispatcherCount.Should().Be(0);
         }
 
         [Test]
         public void Queue_Initial_ThenTryDequeue()
         {
-            var scheduler = new FakeDispatchScheduler();
+            var scheduler = new TestableScheduler() { IsReliable = true };
 
             scheduler.TryDequeue(ATask()).Should().BeFalse();
 
-            scheduler.GetScheduledTasks() .Should().BeEmpty();
-            scheduler.DispatcherStartCount.Should().Be(0);
+            scheduler.GetScheduledTasks()    .Should().BeEmpty();
+            scheduler.TryStartDispatcherCount.Should().Be(0);
         }
 
         [Test]
         public void Queue_AfterQueueTasks()
         {
-            var scheduler = new FakeDispatchScheduler();
+            var scheduler = new TestableScheduler() { IsReliable = true };
             var task0     = ATask();
             var task1     = ATask();
             var task2     = ATask();
@@ -107,14 +107,14 @@ namespace Sharp.Async.Tests
             scheduler.QueueTask(task1);
             scheduler.QueueTask(task2);
 
-            scheduler.GetScheduledTasks() .Should().BeEquivalentTo(task0, task1, task2);
-            scheduler.DispatcherStartCount.Should().Be(3);
+            scheduler.GetScheduledTasks()    .Should().BeEquivalentTo(task0, task1, task2);
+            scheduler.TryStartDispatcherCount.Should().Be(3);
         }
 
         [Test]
         public void Queue_AfterQueueTasks_ThenTryDequeue()
         {
-            var scheduler = new FakeDispatchScheduler();
+            var scheduler = new TestableScheduler() { IsReliable = true };
             var task0     = ATask();
             var task1     = ATask();
             var task2     = ATask();
@@ -125,103 +125,107 @@ namespace Sharp.Async.Tests
             scheduler.TryDequeue(task1).Should().BeTrue();
             scheduler.TryDequeue(task1).Should().BeFalse();
 
-            scheduler.GetScheduledTasks() .Should().BeEquivalentTo(task0, task2);
-            scheduler.DispatcherStartCount.Should().Be(3);
+            scheduler.GetScheduledTasks()    .Should().BeEquivalentTo(task0, task2);
+            scheduler.TryStartDispatcherCount.Should().Be(3);
         }
 
         [Test]
         public void TryExecuteTaskInline_NullTask()
         {
-            using (var scheduler = new DelayedDispatchScheduler())
-            {
-                scheduler.TryExecuteTaskInline(null, false).Should().BeFalse();
-            }
+            var scheduler = new TestableScheduler();
+
+            scheduler.TryExecuteTaskInline(null, false).Should().BeFalse();
         }
 
         [Test]
         public void TryExecuteTaskInline_NotInDispatcherThread()
         {
-            using (var scheduler = new DelayedDispatchScheduler())
-            {
-                scheduler.TryExecuteTaskInline(ATask(), false).Should().BeFalse();
-            }
+            var scheduler = new TestableScheduler();
+
+            scheduler.TryExecuteTaskInline(ATask(), false).Should().BeFalse();
         }
 
         [Test]
         public void TryExecuteTaskInline_NonQueuedTask()
         {
-            using (var scheduler = new DelayedDispatchScheduler())
+            var scheduler = new TestableScheduler();
+            var task0     = null as Task;
+            var task1     = ATask();
+            var task2     = ATask();
+
+            task0 = new Task(() =>
             {
-                var task1 = ATask();
+                // Now inside dispatcher thread
+                task1.RunSynchronously(scheduler);
+                // This should call:
+                // scheduler
+                //    .TryExecuteTaskInline(task1, taskWasPreviouslyQueued: false)
+                //    => true
+            });
 
-                var task0 = new Task(() =>
-                {
-                    // Now inside dispatcher thread
-                    task1.RunSynchronously(scheduler);
-                    // This should call:
-                    // scheduler.TryExecuteTaskInline(task1, false) => true
-                });
+            task0.Start(scheduler);
+            scheduler.IsDispatcherEnabled = true;
+            task2.Start(scheduler);
 
-                task0.Start(scheduler);
-
-                scheduler.EnableDispatch();
-                task0.Wait();
-                task1.Wait();
-            }
+            Task.WaitAll(task0, task1, task2);
         }
 
         [Test]
         public void TryExecuteTaskInline_QueuedTask()
         {
-            using (var scheduler = new DelayedDispatchScheduler())
+            var scheduler = new TestableScheduler(concurrency: 1);
+            var task0     = null as Task;
+            var task1     = ATask();
+            var task2     = ATask();
+
+            task0 = new Task(() =>
             {
-                var task1 = ATask();
+                // Now inside dispatcher thread
+                scheduler
+                    .TryExecuteTaskInline(task1, taskWasPreviouslyQueued: true)
+                    .Should().BeTrue();
+            });
 
-                var task0 = new Task(() =>
-                {
-                    // Now inside dispatcher thread
-                    scheduler.TryExecuteTaskInline(task1, true).Should().BeTrue();
-                });
+            task0.Start(scheduler);
+            task1.Start(scheduler);
+            scheduler.IsDispatcherEnabled = true;
+            task2.Start(scheduler);
 
-                task0.Start(scheduler);
-                task1.Start(scheduler);
-
-                scheduler.EnableDispatch();
-                task0.Wait();
-                task1.Wait();
-            }
+            Task.WaitAll(task0, task1, task2);
         }
 
         [Test]
         public void TryExecuteTaskInline_FailedToDequeueTask()
         {
-            using (var scheduler = new DelayedDispatchScheduler())
+            var scheduler = new TestableScheduler(concurrency: 1);
+            var task0     = null as Task;
+            var task1     = ATask();
+            var task2     = ATask();
+
+            task0 = new Task(() =>
             {
-                var task1 = ATask();
+                // Now inside dispatcher thread
+                scheduler
+                    .TryExecuteTaskInline(task1, taskWasPreviouslyQueued: true)
+                    .Should().BeFalse();
+            });
 
-                var task0 = new Task(() =>
-                {
-                    // Now inside dispatcher thread
-                    scheduler.TryExecuteTaskInline(task1, true).Should().BeFalse();
-                });
+            task0.Start(scheduler);
+            // Do not queue task1
+            scheduler.IsDispatcherEnabled = true;
+            task2.Start(scheduler);
 
-                task0.Start(scheduler);
-                // Do not queue task1
-
-                scheduler.EnableDispatch();
-                task0.Wait();
-                task1.Status.Should().Be(TaskStatus.Created);
-            }
+            Task.WaitAll(task0, task2);
+            task1.Status.Should().Be(TaskStatus.Created);
         }
 
         [Test]
         public void TryStartDispatcher_ConcurrencyConflict()
         {
-            var scheduler = new UnluckyScheduler();
-
-            var task0 = ATask();
-            var task1 = ATask();
-            var task2 = ATask();
+            var scheduler = new TestableScheduler { IsDispatcherEnabled = true };
+            var task0     = ATask();
+            var task1     = ATask();
+            var task2     = ATask();
 
             task0.Start(scheduler);
             task1.Start(scheduler);
@@ -229,7 +233,7 @@ namespace Sharp.Async.Tests
 
             Task.WaitAll(task0, task1, task2);
 
-            scheduler.DispatcherStartCount.Should().BeGreaterThan(3);
+            scheduler.TryStartDispatcherCount.Should().BeGreaterThan(3);
         }
 
         [Test, Retry(3)]
@@ -295,10 +299,18 @@ namespace Sharp.Async.Tests
 
         private class TestableScheduler : LimitedConcurrencyTaskScheduler
         {
-            private int _dispatcherStartCount;
+            private int _fate;
+            private int _tryStartDispatcherCount;
 
-            public TestableScheduler(int concurrency)
-                : base(concurrency) { }
+            public TestableScheduler(int? concurrency = null)
+                : base(concurrency ?? CoreCount) { }
+
+            public bool IsDispatcherEnabled { get; set; }
+
+            public bool IsReliable { get; set; }
+
+            public int TryStartDispatcherCount
+                => _tryStartDispatcherCount;
 
             public new void QueueTask(Task task)
                 => base.QueueTask(task);
@@ -312,75 +324,19 @@ namespace Sharp.Async.Tests
             public new bool TryExecuteTaskInline(Task task, bool taskWasPreviouslyQueued)
                 => base.TryExecuteTaskInline(task, taskWasPreviouslyQueued);
 
-            public int DispatcherStartCount
-                => _dispatcherStartCount;
-
-            protected void OnDispatcherStarted()
-                => Interlocked.Increment(ref _dispatcherStartCount);
-
-            protected bool TryStartDispatcherActually(int count)
-                => base.TryStartDispatcher(count);
-        }
-
-        private class FakeDispatchScheduler : TestableScheduler
-        {
-            public FakeDispatchScheduler()
-                : base(concurrency: CoreCount) { }
-
             private protected override bool TryStartDispatcher(int count)
             {
-                OnDispatcherStarted();
-                return true; // pretend it started
-            }
-        }
+                const int InvalidCount = -42;
 
-        private class DelayedDispatchScheduler : TestableScheduler, IDisposable
-        {
-            public DelayedDispatchScheduler()
-                : base(concurrency: 1) { }
+                Interlocked.Increment(ref _tryStartDispatcherCount);
 
-            private ManualResetEventSlim Enabled { get; }
-                = new ManualResetEventSlim();
+                var succeed
+                    =  IsReliable
+                    || Interlocked.Increment(ref _fate) % 2 == 0;
 
-            public void EnableDispatch()
-            {
-                Enabled.Set();
-            }
-
-            private protected override bool TryStartDispatcher(int count)
-            {
-                Task.Factory.StartNew(() =>
-                {
-                    Enabled.Wait();
-                    base.TryStartDispatcher(count);
-                });
-
-                return true; // pretend it started
-            }
-
-            void IDisposable.Dispose()
-            {
-                Enabled.Dispose();
-            }
-        }
-
-        private class UnluckyScheduler : TestableScheduler
-        {
-            private int _fate;
-
-            public UnluckyScheduler()
-                : base(concurrency: CoreCount) { }
-
-            private protected override bool TryStartDispatcher(int count)
-            {
-                OnDispatcherStarted();
-
-                var doomed = Interlocked.Increment(ref _fate) % 2 == 1;
-
-                if (doomed)
-                    count = -42; // poison
-
-                return TryStartDispatcherActually(count);
+                return IsDispatcherEnabled
+                    ? base.TryStartDispatcher(succeed ? count : InvalidCount)
+                    : succeed; // pretend
             }
         }
     }
