@@ -132,34 +132,85 @@ namespace Sharp.Async.Tests
         [Test]
         public void TryExecuteTaskInline_NullTask()
         {
-            var scheduler = new TestableScheduler();
-
-            scheduler.TryExecuteTaskInline(null, false).Should().BeFalse();
+            using (var scheduler = new DelayedDispatchScheduler())
+            {
+                scheduler.TryExecuteTaskInline(null, false).Should().BeFalse();
+            }
         }
 
         [Test]
         public void TryExecuteTaskInline_NotInDispatcherThread()
         {
-            var scheduler = new TestableScheduler();
+            using (var scheduler = new DelayedDispatchScheduler())
+            {
+                scheduler.TryExecuteTaskInline(ATask(), false).Should().BeFalse();
+            }
+        }
 
-            scheduler.TryExecuteTaskInline(ATask(), false).Should().BeFalse();
+        [Test]
+        public void TryExecuteTaskInline_NonQueuedTask()
+        {
+            using (var scheduler = new DelayedDispatchScheduler())
+            {
+                var task1 = ATask();
+
+                var task0 = new Task(() =>
+                {
+                    // Now inside dispatcher thread
+                    task1.RunSynchronously(scheduler);
+                    //scheduler.TryExecuteTaskInline(task1, false).Should().BeTrue(); // intent
+                });
+
+                task0.Start(scheduler);
+
+                scheduler.EnableDispatch();
+                task0.Wait();
+                task1.Wait();
+            }
+        }
+
+        [Test]
+        public void TryExecuteTaskInline_QueuedTask()
+        {
+            using (var scheduler = new DelayedDispatchScheduler())
+            {
+                var task1 = ATask();
+
+                var task0 = new Task(() =>
+                {
+                    // Now inside dispatcher thread
+                    scheduler.TryExecuteTaskInline(task1, true).Should().BeTrue();
+                });
+
+                task0.Start(scheduler);
+                task1.Start(scheduler);
+
+                scheduler.EnableDispatch();
+                task0.Wait();
+                task1.Wait();
+            }
         }
 
         [Test]
         public void TryExecuteTaskInline_FailedToDequeueTask()
         {
-            var scheduler = new TestableScheduler();
-            var task0     = ATask();
-            var task1     = new Task(() =>
+            using (var scheduler = new DelayedDispatchScheduler())
             {
-                // In here, we will be inside a dispatcher thread
-                scheduler.TryExecuteTaskInline(task0, true).Should().BeFalse();
-            });
+                var task1 = ATask();
 
-            task1.Start(scheduler);
-            task1.Wait();
+                var task0 = new Task(() =>
+                {
+                    // Now inside dispatcher thread
+                    scheduler.TryExecuteTaskInline(task1, true).Should().BeFalse();
+                });
 
-            task0.Status.Should().Be(TaskStatus.Created);
+                task0.Start(scheduler);
+                // Do not queue task1
+
+                scheduler.EnableDispatch();
+                task0.Wait();
+                task1.Status.Should().Be(TaskStatus.Created);
+            }
         }
 
         [Test, Retry(3)]
@@ -243,8 +294,8 @@ namespace Sharp.Async.Tests
 
         private class TestableScheduler : LimitedConcurrencyTaskScheduler
         {
-            public TestableScheduler()
-                : base(4) { }
+            public TestableScheduler(int concurrency = 4)
+                : base(concurrency) { }
 
             public new void QueueTask(Task task)
                 => base.QueueTask(task);
@@ -257,14 +308,19 @@ namespace Sharp.Async.Tests
 
             public new bool TryExecuteTaskInline(Task task, bool taskWasPreviouslyQueued)
                 => base.TryExecuteTaskInline(task, taskWasPreviouslyQueued);
+
+            private protected override bool TryStartDispatcher(int count)
+            {
+                // Delay to allow test arrangement to complete
+                Thread.Sleep(50.Milliseconds());
+                return base.TryStartDispatcher(count);
+            }
         }
 
         private class FakeDispatchScheduler : TestableScheduler
         {
             private int _dispatcherStartCount;
-
-            public int DispatcherStartCount
-                => _dispatcherStartCount;
+            public  int  DispatcherStartCount => _dispatcherStartCount;
 
             private protected override bool TryStartDispatcher(int count)
             {
@@ -273,7 +329,39 @@ namespace Sharp.Async.Tests
             }
 
             protected override bool TryExecuteTask(Task task)
-                => throw new NotSupportedException();
+            {
+                throw new NotSupportedException();
+            }
+        }
+
+        private class DelayedDispatchScheduler : TestableScheduler, IDisposable
+        {
+            private readonly ManualResetEventSlim _enabled
+                = new ManualResetEventSlim();
+
+            public DelayedDispatchScheduler()
+                : base(concurrency: 1) { }
+
+            public void EnableDispatch()
+            {
+                _enabled.Set();
+            }
+
+            private protected override bool TryStartDispatcher(int count)
+            {
+                Task.Factory.StartNew(() =>
+                {
+                    _enabled.Wait();
+                    base.TryStartDispatcher(count);
+                });
+
+                return true;
+            }
+
+            void IDisposable.Dispose()
+            {
+                _enabled.Dispose();
+            }
         }
 
         private class LoggingScheduler : TestableScheduler
