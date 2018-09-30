@@ -4,7 +4,7 @@ bin/
 /dist/
 /coverage/
 
-# Visual Studio User Files
+# Visual Studio
 .vs/
 *.user
 
@@ -13,10 +13,6 @@ bin/
 *.vsp
 *.vspx
 *.sap
-
-# Testing
-TestResults
-TestResult*.xml
 
 # Local Files
 /Local.props
