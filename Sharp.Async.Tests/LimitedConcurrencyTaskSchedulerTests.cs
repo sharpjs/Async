@@ -272,22 +272,6 @@ namespace Sharp.Async.Tests
                 .ToArray();
         }
 
-        private static void WaitUntil(Func<bool> condition, TimeSpan? duration = null)
-        {
-            var limit = DateTime.UtcNow + (duration ?? 3.Seconds());
-
-            for (;;)
-            {
-                if (condition())
-                    return;
-
-                if (DateTime.UtcNow > limit)
-                    Assert.Fail("Gave up waiting for condition.");
-
-                Thread.Sleep(30.Milliseconds());
-            }
-        }
-
         private static Task ATask() => new Task(() => { });
 
         private static Task NonExecutableTask => Task.CompletedTask;
