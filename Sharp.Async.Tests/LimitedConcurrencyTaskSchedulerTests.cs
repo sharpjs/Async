@@ -310,43 +310,47 @@ namespace Sharp.Async.Tests
 
             public new bool TryExecuteTaskInline(Task task, bool taskWasPreviouslyQueued)
                 => base.TryExecuteTaskInline(task, taskWasPreviouslyQueued);
+
+            private int _dispatcherStartCount;
+            public  int  DispatcherStartCount => _dispatcherStartCount;
+
+            protected void OnDispatcherStarted()
+                => Interlocked.Increment(ref _dispatcherStartCount);
+
+            protected bool TryStartDispatcherActually(int count)
+                => base.TryStartDispatcher(count);
         }
 
         private class FakeDispatchScheduler : TestableScheduler
         {
-            private int _dispatcherStartCount;
-
             public FakeDispatchScheduler()
                 : base(concurrency: int.MaxValue) { }
 
-            public int DispatcherStartCount => _dispatcherStartCount;
-
             private protected override bool TryStartDispatcher(int count)
             {
-                Interlocked.Increment(ref _dispatcherStartCount);
-
+                OnDispatcherStarted();
                 return true; // pretend it started
             }
         }
 
         private class DelayedDispatchScheduler : TestableScheduler, IDisposable
         {
-            private readonly ManualResetEventSlim _enabled
-                = new ManualResetEventSlim();
-
             public DelayedDispatchScheduler(int concurrency = 1)
                 : base(concurrency) { }
 
+            private ManualResetEventSlim Enabled { get; }
+                = new ManualResetEventSlim();
+
             public void EnableDispatch()
             {
-                _enabled.Set();
+                Enabled.Set();
             }
 
             private protected override bool TryStartDispatcher(int count)
             {
                 Task.Factory.StartNew(() =>
                 {
-                    _enabled.Wait();
+                    Enabled.Wait();
                     base.TryStartDispatcher(count);
                 });
 
@@ -355,7 +359,7 @@ namespace Sharp.Async.Tests
 
             void IDisposable.Dispose()
             {
-                _enabled.Dispose();
+                Enabled.Dispose();
             }
         }
     }
