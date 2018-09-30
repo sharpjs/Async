@@ -344,7 +344,7 @@ namespace Sharp.Async.Tests
                     base.TryStartDispatcher(count);
                 });
 
-                return true;
+                return true; // pretend it started
             }
 
             void IDisposable.Dispose()
