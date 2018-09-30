@@ -336,11 +336,6 @@ namespace Sharp.Async.Tests
 
                 return true; // pretend it started
             }
-
-            protected override bool TryExecuteTask(Task task)
-            {
-                throw new NotSupportedException();
-            }
         }
 
         private class DelayedDispatchScheduler : TestableScheduler, IDisposable

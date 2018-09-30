@@ -179,6 +179,7 @@ namespace Sharp.Async
                 // might be empty due to a previous TryDequeue invocation.
                 while (_queue.TryDequeue(out var entry))
                     if (entry.TryTake(out var task))
+                        // Execute task on current thread
                         TryExecuteTask(task);
             }
             finally
@@ -188,21 +189,6 @@ namespace Sharp.Async
                 _threadIsDispatching = false;
             }
         }
-
-        /// <summary>
-        ///   Attempts to execute the specified task on the current thread.
-        ///   This is the core execute method, used internally by the scheduler
-        ///   to invoke the underlying .NET dispatch mechanism.
-        /// </summary>
-        /// <param name="task">The task to execute.</param>
-        /// <returns>
-        ///   <c>true</c> if <paramref name="task"/> was successfully executed;
-        ///   <c>false</c> if it was not.  A common reason for execution
-        ///   failure is that the task had previously been executed or is in
-        ///   the process of being executed by another thread.
-        /// </returns>
-        protected virtual new bool TryExecuteTask(Task task)
-            => base.TryExecuteTask(task);
 
         // An entry in the task queue.  ConcurrentQueue<T> does not implement
         // removal of arbitary items.  This type adds that capability.  A task
