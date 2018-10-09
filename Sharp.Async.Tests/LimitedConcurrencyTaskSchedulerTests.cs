@@ -23,7 +23,7 @@ using FluentAssertions;
 using FluentAssertions.Extensions;
 using NUnit.Framework;
 
-namespace Sharp.Async.Tests
+namespace Sharp.Async
 {
     [TestFixture]
     public class LimitedConcurrencyTaskSchedulerTests

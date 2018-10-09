@@ -18,7 +18,7 @@ using System.Threading;
 using FluentAssertions;
 using NUnit.Framework;
 
-namespace Sharp.Async.Tests
+namespace Sharp.Async
 {
     [TestFixture]
     public class AsyncScopeTests
