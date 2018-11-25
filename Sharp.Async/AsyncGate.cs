@@ -30,7 +30,7 @@ namespace Sharp.Async
     ///     https://blogs.msdn.microsoft.com/pfxteam/2012/02/11/building-async-coordination-primitives-part-1-asyncmanualresetevent/
     ///   </para>
     /// </remarks>
-    internal class AsyncGate
+    public class AsyncGate
     {
         // The internal gate is a TaskCompletionSource, which functions as a
         // single-use gate.  An instance starts in the closed state.  Once
