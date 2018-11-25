@@ -131,6 +131,24 @@ namespace Sharp.Async
             task.Wait(100.Milliseconds()).Should().BeTrue();
         }
 
+        [Test]
+        public void Stampede()
+        {
+            var gate = new AsyncGate();
+
+            var herd = Enumerable
+                .Range(0, Environment.ProcessorCount * 32)
+                .Select(_ => Task.Run(async () =>
+                {
+                    await gate.WaitAsync();
+                }))
+                .ToList();
+
+            gate.Open();
+
+            Task.WhenAll(herd);
+        }
+
         private static void ShouldBeClosed(AsyncGate gate)
         {
             gate.IsOpen.Should().BeFalse();
