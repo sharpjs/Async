@@ -24,7 +24,7 @@
     <Copyright>Copyright 2018 Jeffrey Sharp</Copyright>
     <PackageLicenseUrl>https://github.com/sharpjs/Sharp.Async/blob/master/LICENSE.txt</PackageLicenseUrl>
     <PackageProjectUrl>https://github.com/sharpjs/Sharp.Async</PackageProjectUrl>
-    <PackageTags>Async Concurrent Concurrency Parallel Synchronous Task Thread Scheduler TaskScheduler AsyncScope LimitedConcurrencyTaskScheduler</PackageTags>
+    <PackageTags>Async Concurrent Concurrency Parallel Synchronous Task Thread Scheduler TaskScheduler AsyncGate AsyncScope LimitedConcurrencyTaskScheduler</PackageTags>
     <PackageReleaseNotes>Release notes are available at:
 https://github.com/sharpjs/Sharp.Async/releases
 </PackageReleaseNotes>
