@@ -20,7 +20,7 @@
   <Import Project="..\Local.props" Condition="Exists('..\Local.props')" />
 
   <PropertyGroup>
-    <Description>Helpers for Asynchronous Programming</Description>
+    <Description>Helpers for asynchronous programming</Description>
     <TargetFrameworks>netstandard2.0;net45</TargetFrameworks>
     <GeneratePackageOnBuild>$(VersionIsTagged)</GeneratePackageOnBuild>
   </PropertyGroup>
