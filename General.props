@@ -36,4 +36,8 @@ https://github.com/sharpjs/Sharp.Async/releases
     <PackageOutputPath>..\dist\</PackageOutputPath>
   </PropertyGroup>
 
+  <ItemGroup Condition="'$(GeneratePackageOnBuild)'=='true'">
+    <None Include="..\LICENSE.txt" Pack="true" PackagePath="$(PackageLicenseFile)" />
+  </ItemGroup>
+
 </Project>
