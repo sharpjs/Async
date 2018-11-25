@@ -1,6 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
-  <!--
+﻿/*
     Copyright (C) 2018 Jeffrey Sharp
 
     Permission to use, copy, modify, and distribute this software for any
@@ -14,21 +12,22 @@
     WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
     ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
     OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-  -->
+*/
 
-  <Import Project="..\General.props" />
-  <Import Project="..\Local.props" Condition="Exists('..\Local.props')" />
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
-  <PropertyGroup>
-    <Description>Helpers for Asynchronous Programming</Description>
-    <TargetFrameworks>netstandard2.0;net45</TargetFrameworks>
-    <GeneratePackageOnBuild>$(VersionIsTagged)</GeneratePackageOnBuild>
-  </PropertyGroup>
+#if NETFRAMEWORK
+using System.Security;
+#endif
 
-  <ItemGroup>
-    <Compile Include="..\GlobalAssemblyInfo.cs" Link="Properties\GlobalAssemblyInfo.cs" />
-  </ItemGroup>
+// COM Compliance
+[assembly: ComVisible(false)]
 
-  <Import Project="..\InheritDoc.targets" />
+#if NETFRAMEWORK
+// Security
+[assembly: SecurityRules(SecurityRuleSet.Level2)]
+#endif
 
-</Project>
+// Visibility
+[assembly: InternalsVisibleTo("Sharp.Async.Tests")]
