@@ -18,7 +18,7 @@
 
   <PropertyGroup>
     <Description>Tests for Sharp.Async</Description>
-    <TargetFrameworks>net48;netcoreapp3.1</TargetFrameworks>
+    <TargetFrameworks>net48;netcoreapp3.1;net5.0</TargetFrameworks>
     <RootNamespace>Sharp.Async</RootNamespace>
   </PropertyGroup>
 
