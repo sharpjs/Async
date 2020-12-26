@@ -23,7 +23,7 @@ namespace Sharp.Async
     [TestFixture]
     public class AsyncScopeTests
     {
-        private SynchronizationContext PriorContext;
+        private SynchronizationContext? PriorContext;
 
         [SetUp]
         public void SetUp()

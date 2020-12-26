@@ -114,11 +114,11 @@ namespace Sharp.Async
         {
             // Provide a semi-atomic snapshot for debug purposes.  The queue
             // enumeration is atomic, but the task projection is not.
-            return _queue.Select(e => e.Task).Where(t => t != null).ToList();
+            return _queue.Select(e => e.Task).Where(t => t != null).ToList()!;
         }
 
         /// <inheritdoc/>
-        protected override bool TryExecuteTaskInline(Task task, bool taskWasPreviouslyQueued)
+        protected override bool TryExecuteTaskInline(Task? task, bool taskWasPreviouslyQueued)
         {
             if (task == null)
                 return false;
@@ -196,21 +196,21 @@ namespace Sharp.Async
         // leaving an empty entry.  Empty entries should be skipped on dequeue.
         private sealed class Entry
         {
-            private Task _task;
+            private Task? _task;
 
             public Entry(Task task)
                 => _task = task;
 
-            public Task Task
+            public Task? Task
                 => _task;
 
             public bool TryTake(out Task task)
-                => (task = Take()) != null;
+                => (task = Take()!) != null;
 
             public bool TryTake(Task task)
                 => _task == task && Take() != null;
 
-            private Task Take()
+            private Task? Take()
                 => Interlocked.Exchange(ref _task, null);
         }
     }

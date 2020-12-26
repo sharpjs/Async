@@ -63,7 +63,7 @@ namespace Sharp.Async
             var scheduler = new TestableScheduler();
 
             scheduler
-                .Invoking(s => s.QueueTask(null))
+                .Invoking(s => s.QueueTask(null!))
                 .Should().Throw<ArgumentNullException>();
         }
 
@@ -72,7 +72,7 @@ namespace Sharp.Async
         {
             var scheduler = new TestableScheduler();
 
-            scheduler.TryDequeue(null).Should().BeFalse();
+            scheduler.TryDequeue(null!).Should().BeFalse();
         }
 
         [Test]
@@ -321,7 +321,7 @@ namespace Sharp.Async
             public new IEnumerable<Task> GetScheduledTasks()
                 => base.GetScheduledTasks();
 
-            public new bool TryExecuteTaskInline(Task task, bool taskWasPreviouslyQueued)
+            public new bool TryExecuteTaskInline(Task? task, bool taskWasPreviouslyQueued)
                 => base.TryExecuteTaskInline(task, taskWasPreviouslyQueued);
 
             private protected override bool TryStartDispatcher(int count)
