@@ -5,8 +5,7 @@
 .DESCRIPTION
     This script is similar to a makefile.
 
-.NOTES
-    Copyright (C) 2018 Jeffrey Sharp
+    Copyright 2020 Jeffrey Sharp
 
     Permission to use, copy, modify, and distribute this software for any
     purpose with or without fee is hereby granted, provided that the above
@@ -30,7 +29,7 @@ param (
     [Parameter(ParameterSetName="Test")]
     [switch] $Test,
 
-    # Build, run tests, and produce code covarage report.
+    # Build, run tests, produce code coverage report.
     [Parameter(Mandatory, ParameterSetName="Coverage")]
     [switch] $Coverage,
 
@@ -39,7 +38,11 @@ param (
     [Parameter(ParameterSetName="Test")]
     [Parameter(ParameterSetName="Coverage")]
     [ValidateSet("Debug", "Release")]
-    [string] $Configuration = "Debug"
+    [string] $Configuration = "Debug",
+
+    # Update .NET CLI 'local tool' plugins.
+    [Parameter(Mandatory, ParameterSetName="UpdateLocalTools")]
+    [switch] $UpdateLocalTools
 )
 
 #Requires -Version 5
@@ -48,8 +51,6 @@ Set-StrictMode -Version Latest
 
 $Command = $PSCmdlet.ParameterSetName
 if ($Command -eq "Test") { $Test = $true }
-
-$AssemblyNameRoot = "Sharp.Async"
 
 # http://patorjk.com/software/taag/#p=display&f=Slant
 Write-Host -ForegroundColor Cyan @' 
@@ -63,39 +64,56 @@ Write-Host -ForegroundColor Cyan @'
 '@
 
 function Main {
+    if ($UpdateLocalTools) {
+        Update-LocalTools
+        return
+    }
+
     Invoke-Build
 
     if ($Test -or $Coverage) {
-        Set-Location -LiteralPath "$AssemblyNameRoot.Tests"
-        Invoke-TestForTargetFramework net472
-        Invoke-TestForTargetFramework netcoreapp2.1
+        Invoke-Test
+    }
+
+    if ($Coverage) {
+        Export-CoverageReport
     }
 } 
 
-function Invoke-Build {
-    Write-Phase "Build"
-    Invoke-DotNetExe build --configuration $Configuration
+function Update-LocalTools {
+    Write-Phase "Update Local Tools"
+    Invoke-DotNetExe tool update dotnet-reportgenerator-globaltool
 }
 
-function Invoke-TestForTargetFramework {
-    param (
-        [Parameter(Mandatory)]
-        [string] $TargetFramework
-    )
+function Invoke-Build {
+    Write-Phase "Build"
+    Invoke-DotNetExe build --configuration:$Configuration
+}
 
-    Write-Phase "Test: $TargetFramework$(if ($Coverage) {" + Coverage"})"
+function Invoke-Test {
+    Write-Phase "Test$(if ($Coverage) {" + Coverage"})"
+    Remove-Item coverage\raw -Recurse -ErrorAction SilentlyContinue
     Invoke-DotNetExe -Arguments @(
-        if ($Coverage) {
-            "dotcover"
-                "--dcReportType=HTML"
-                "--dcOutput=..\coverage\$TargetFramework.html"
-                "--dcFilters=+:$AssemblyNameRoot`;+:$AssemblyNameRoot.*`;-:*.Tests"
-                "--dcAttributeFilters=-:System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute"
-        }
         "test"
-            "--framework:$TargetFramework"
-            "--configuration:$Configuration"
-            "--no-build"
+        "--nologo"
+        "--no-build"
+        "--configuration:$Configuration"
+        if ($Coverage) {
+            "--settings:Coverlet.runsettings"
+            "--results-directory:coverage\raw"
+        }
+    )
+}
+
+function Export-CoverageReport {
+    Write-Phase "Coverage Report"
+    Invoke-DotNetExe -Arguments "tool", "restore"
+    Invoke-DotNetExe -Arguments @(
+        "reportgenerator"
+        "-reports:coverage\raw\**\coverage.opencover.xml"
+        "-targetdir:coverage"
+        "-reporttypes:Cobertura;HtmlInline_AzurePipelines_Dark;Badges;TeamCitySummary"
+        "-verbosity:Warning"
     )
 }
 
