@@ -4,6 +4,10 @@ A (very) small set of helpers for asynchronous programming in .NET.
 
 ## Status
 
+[![Build](https://github.com/sharpjs/Sharp.Async/workflows/Build/badge.svg)](https://github.com/sharpjs/Sharp.Async/actions)
+[![NuGet](https://img.shields.io/nuget/v/Sharp.Async.svg)](https://www.nuget.org/packages/Sharp.Async)
+[![NuGet](https://img.shields.io/nuget/dt/Sharp.Async.svg)](https://www.nuget.org/packages/Sharp.Async)
+
 In limited production use.  &ge;96% test coverage.
 
 ## Overview
