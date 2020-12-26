@@ -20,7 +20,7 @@ using NUnit.Framework;
 
 namespace Sharp.Async
 {
-    [TestFixture]
+    [TestFixture, NonParallelizable]
     public class AsyncScopeTests
     {
         private SynchronizationContext? PriorContext;

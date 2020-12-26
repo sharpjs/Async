@@ -25,7 +25,7 @@ using NUnit.Framework;
 
 namespace Sharp.Async
 {
-    [TestFixture]
+    [TestFixture, NonParallelizable]
     public class LimitedConcurrencyTaskSchedulerTests
     {
         private static readonly int

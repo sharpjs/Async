@@ -24,7 +24,7 @@ using NUnit.Framework;
 
 namespace Sharp.Async
 {
-    [TestFixture]
+    [TestFixture, NonParallelizable]
     public class AsyncGateTests
     {
         [Test]
